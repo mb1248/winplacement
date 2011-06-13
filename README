@@ -11,5 +11,5 @@ Try it. Type winplacement -h for all options.
 INSTALL
 
 Type "make" to compile winplacement.
-Copy winplacement in your ~/bin path.
+Copy winplacement in your local ~/bin path.
 Import the winplacement.khotkeys file to your KDE hotkeys.
