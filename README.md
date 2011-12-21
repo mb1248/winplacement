@@ -1,0 +1,1 @@
+[![Flattr this git repo](http://api.flattr.com/button/flattr-badge-large.png)](https://flattr.com/submit/auto?user_id=mb1248&url=https://github.com/mb1248/winplacement&title=winplacement&language=&tags=github&category=software)
