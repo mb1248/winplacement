@@ -21,8 +21,9 @@
 #include <getopt.h>
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
+#include <X11/extensions/Xinerama.h>
 
-#define VERSION "1.2"
+#define VERSION "1.2.9"
 
 #define GOLDRATIO 0.618
 
@@ -33,20 +34,40 @@
 #define TOP 13
 
 // set 1 for debug output
-#define DEBUG 0
+#define DEBUG 1
 #define v_printf(...) if (DEBUG) { \
   fprintf(stderr, __VA_ARGS__); \
+}
+
+static int findscreen(XineramaScreenInfo *XineramaInfo, int screen_count, XWindowAttributes *window){
+  int i;
+  for(i=0; i<screen_count; i++){
+#if 0 
+    //left top corner
+    if (   ((window->x >= XineramaInfo[i].x_org) && (window->x < XineramaInfo[i].x_org+XineramaInfo[i].width))
+        && ((window->y >= XineramaInfo[i].y_org) && (window->y < XineramaInfo[i].y_org+XineramaInfo[i].height))) {
+#else 
+    //center
+    if (   ((window->x+0.5*window->width >= XineramaInfo[i].x_org) && (window->x+0.5*window->width < XineramaInfo[i].x_org+XineramaInfo[i].width))
+        && ((window->y+0.5*window->height >= XineramaInfo[i].y_org) && (window->y+0.5*window->height < XineramaInfo[i].y_org+XineramaInfo[i].height))) {
+#endif
+      return i;
+
+    }
+  }
+  return -1;
 }
 
 int main (int argc, char **argv) {
   int ret = EXIT_SUCCESS;
 
-  Bool right     = False;
-  Bool left      = False;
-  Bool top       = False;
-  Bool bottom    = False;
-  Bool nomax     = False;
-  Bool printhelp = False;
+  Bool right         = False;
+  Bool left          = False;
+  Bool top           = False;
+  Bool bottom        = False;
+  Bool nomax         = False;
+  Bool printhelp     = False;
+  Bool switchmonitor = False;
 
   double factor  = 0.5;
 
@@ -67,7 +88,7 @@ int main (int argc, char **argv) {
   int c;
   
   while (1) {
-    c = getopt_long (argc, argv, "hrltnbgG", long_options, &option_index);
+    c = getopt_long (argc, argv, "hrltnbgGm", long_options, &option_index);
 
     // Detect the end of the options.
     if (c == -1) break;
@@ -138,7 +159,10 @@ int main (int argc, char **argv) {
         }
         factor = GOLDRATIO;
         break;
-
+      case 'm':
+        v_printf("switch monitor\n");
+        switchmonitor = True;
+        break;
       case '?':
         /* getopt_long already printed an error message. */
         break;
@@ -199,6 +223,21 @@ int main (int argc, char **argv) {
   win = *((Window *)data);
   XFree(data);
 
+  // Get coordinates
+  int x, y;
+  Window w_dum = (Window)0;
+  XWindowAttributes activ_atr;
+  XWindowAttributes root_atr;
+  XGetWindowAttributes(disp, win, &activ_atr);
+  XTranslateCoordinates (disp, win, activ_atr.root, activ_atr.x, activ_atr.y, &x, &y, &w_dum);
+  activ_atr.x=x;
+  activ_atr.y=y;
+  v_printf("%ux%u @ (%d,%d)/(%d,%d)\n", activ_atr.width, activ_atr.height, x, y, activ_atr.x, activ_atr.y);
+
+  // Get resolution
+  XGetWindowAttributes(disp, activ_atr.root, &root_atr);
+  v_printf("Resolution: %ux%u\n", root_atr.width, root_atr.height);
+  
   // Get workarea
   unsigned long *value;
   XGetWindowProperty(disp, DefaultRootWindow(disp), XInternAtom(disp, "_NET_WORKAREA", False),
@@ -212,7 +251,39 @@ int main (int argc, char **argv) {
 
   XFree(value);
   v_printf("Workarea: %lux%lu @ (%lu,%lu)\n", desktop_w, desktop_h, desktop_x, desktop_y);
-
+  
+  // try to get Xinerama stuff
+  
+  // Count number of xinerama screens
+  XineramaScreenInfo *XineramaInfo;
+  int screen_count;
+  
+  XineramaInfo = XineramaQueryScreens(disp, &screen_count);
+  
+  v_printf("Screen Number: %d\n", screen_count);
+  
+  int i;
+  for (i=0; i<screen_count; i++){
+    v_printf("x,y=(%d,%d) w,h=(%d,%d)\n", XineramaInfo[i].x_org,  XineramaInfo[i].y_org,  XineramaInfo[i].width,  XineramaInfo[i].height);
+  }
+  
+  int activescreen = findscreen(XineramaInfo, screen_count, &activ_atr);
+  v_printf("Activescreen: %d\n", activescreen);
+  
+  desktop_x = XineramaInfo[activescreen].x_org;
+  desktop_y = XineramaInfo[activescreen].y_org;
+  desktop_w = XineramaInfo[activescreen].width;
+  desktop_h = XineramaInfo[activescreen].height;
+  
+  if (switchmonitor) {
+    
+  }
+  
+  desktop_x = XineramaInfo[activescreen].x_org;
+  desktop_y = XineramaInfo[activescreen].y_org;
+  desktop_w = XineramaInfo[activescreen].width;
+  desktop_h = XineramaInfo[activescreen].height;
+  
   Bool isNormalWindow = True;
   
   XGetWindowProperty (disp, win, XInternAtom(disp, "_NET_WM_WINDOW_TYPE", False),
@@ -256,7 +327,7 @@ int main (int argc, char **argv) {
   }
   XFree(data);
 
-  // Calculate new Position and gravity flag
+  // Calculate new Position and set gravity flag
   int new_x = 0, new_y = 0;
   unsigned long grflags = StaticGravity;
   int width = desktop_w * factor - 4 * BORDER + 2;
