@@ -73,14 +73,15 @@ int main (int argc, char **argv) {
 
   // Options
   static struct option long_options[] = {
-    {"help",        no_argument, 0, 'h'},
-    {"right",       no_argument, 0, 'r'},
-    {"left",        no_argument, 0, 'l'},
-    {"top",         no_argument, 0, 't'},
-    {"bottom",      no_argument, 0, 'b'},
-    {"nomax",       no_argument, 0, 'n'},
-    {"goldenratio", no_argument, 0, 'g'},
-    {"Goldenratio", no_argument, 0, 'G'},
+    {"help",          no_argument, 0, 'h'},
+    {"right",         no_argument, 0, 'r'},
+    {"left",          no_argument, 0, 'l'},
+    {"top",           no_argument, 0, 't'},
+    {"bottom",        no_argument, 0, 'b'},
+    {"nomax",         no_argument, 0, 'n'},
+    {"goldenratio",   no_argument, 0, 'g'},
+    {"Goldenratio",   no_argument, 0, 'G'},
+    {"switchmonitor", no_argument, 0, 'm'},
     {0, 0, 0, 0}};
 
   // getopt_long stores the option index here.
@@ -173,7 +174,7 @@ int main (int argc, char **argv) {
   }
 
   // Print help text
-  if ((!left  && !right && !top && !bottom) || (printhelp)) {
+  if ((!left  && !right && !top && !bottom && !switchmonitor) || (printhelp)) {
     printf(\
 	   "winplacement version "VERSION"\n\n"\
            "Usage: winplacement [options]\n"\
@@ -185,6 +186,7 @@ int main (int argc, char **argv) {
            "  -n, --nomax         Without vertical or horizontal maximizing.\n\n"\
            "  -g, --goldenratio   Use the small part of the golden ratio. (Need -r or -l)\n"\
            "  -G, --Goldenratio   Use the big part of the golden ratio. (Need -r or -l)\n"\
+           "  -m, --switchmonitor Change the Monitor.\n"\
           );
     return EXIT_FAILURE;
   }
@@ -275,14 +277,19 @@ int main (int argc, char **argv) {
   desktop_w = XineramaInfo[activescreen].width;
   desktop_h = XineramaInfo[activescreen].height;
   
+  int newscreen;
   if (switchmonitor) {
+    newscreen = (activescreen + 1) % screen_count;
+    activ_atr.x = (double)activ_atr.x/XineramaInfo[activescreen].width*XineramaInfo[newscreen].width;
+    activ_atr.width = (double)activ_atr.width/XineramaInfo[activescreen].width*XineramaInfo[newscreen].width;
+    activ_atr.y = (double)activ_atr.y/XineramaInfo[activescreen].height*XineramaInfo[newscreen].height;
+    activ_atr.height = (double)activ_atr.height/XineramaInfo[activescreen].height*XineramaInfo[newscreen].height;
     
+    desktop_x = XineramaInfo[newscreen].x_org;
+    desktop_y = XineramaInfo[newscreen].y_org;
+    desktop_w = XineramaInfo[newscreen].width;
+    desktop_h = XineramaInfo[newscreen].height;
   }
-  
-  desktop_x = XineramaInfo[activescreen].x_org;
-  desktop_y = XineramaInfo[activescreen].y_org;
-  desktop_w = XineramaInfo[activescreen].width;
-  desktop_h = XineramaInfo[activescreen].height;
   
   Bool isNormalWindow = True;
   
@@ -332,6 +339,12 @@ int main (int argc, char **argv) {
   unsigned long grflags = StaticGravity;
   int width = desktop_w * factor - 4 * BORDER + 2;
   int height = (desktop_h) * factor - 2 * BORDER  - 2 * TOP;
+  if (switchmonitor) {
+    new_x  = activ_atr.x;
+    new_y  = activ_atr.y;
+//     width  = activ_atr.width;
+//     height = activ_atr.height;
+  }
   
   if (right) {
     new_x = desktop_x + desktop_w * (1.0 - factor) +  3 * BORDER ;
