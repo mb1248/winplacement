@@ -1,17 +1,17 @@
-CC=gcc
+CC=`which gcc`
 CFLAGS=-c -Wall -Os `pkg-config --cflags x11`
-LDFLAGS=`pkg-config --libs x11`
+LDFLAGS=`pkg-config --libs x11 xinerama`
 SOURCES=winplacement.c
 OBJECTS=$(SOURCES:.c=.o)
-	EXECUTABLE=winplacement
+EXECUTABLE=winplacement
 
 all: $(SOURCES) $(EXECUTABLE)
 		
 $(EXECUTABLE): $(OBJECTS) 
-		$(CC) $(LDFLAGS) $(OBJECTS) -o $@
+		$(CC) $(CFFLAGS) -o $@ $(OBJECTS) $(LDFLAGS)
 
-.c.o:
-		$(CC) $(CFLAGS) $< -o $@
+%.o:%.c
+		$(CC) $(CFLAGS) -c $< 
 
 clean:
-	rm -f *.o $(EXECUTABLE)
+	rm -f $(OBJECTS) $(EXECUTABLE)
