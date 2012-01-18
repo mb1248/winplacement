@@ -39,18 +39,12 @@
   fprintf(stderr, __VA_ARGS__); \
 }
 
-static int findscreen(XineramaScreenInfo *XineramaInfo, int screen_count, XWindowAttributes *window){
+static int findscreen(XineramaScreenInfo *XineramaInfo, int screen_count, XWindowAttributes *window) {
   int i;
-  for(i=0; i<screen_count; i++){
-#if 0 
-    //left top corner
-    if (   ((window->x >= XineramaInfo[i].x_org) && (window->x < XineramaInfo[i].x_org+XineramaInfo[i].width))
-        && ((window->y >= XineramaInfo[i].y_org) && (window->y < XineramaInfo[i].y_org+XineramaInfo[i].height))) {
-#else 
-    //center
+  for(i=0; i<screen_count; i++) {
+    // center
     if (   ((window->x+0.5*window->width >= XineramaInfo[i].x_org) && (window->x+0.5*window->width < XineramaInfo[i].x_org+XineramaInfo[i].width))
         && ((window->y+0.5*window->height >= XineramaInfo[i].y_org) && (window->y+0.5*window->height < XineramaInfo[i].y_org+XineramaInfo[i].height))) {
-#endif
       return i;
 
     }
@@ -232,9 +226,10 @@ int main (int argc, char **argv) {
   XWindowAttributes root_atr;
   XGetWindowAttributes(disp, win, &activ_atr);
   XTranslateCoordinates (disp, win, activ_atr.root, activ_atr.x, activ_atr.y, &x, &y, &w_dum);
+  
+  v_printf("%ux%u @ (%d,%d)/(%d,%d)\n", activ_atr.width, activ_atr.height, x, y, activ_atr.x, activ_atr.y);
   activ_atr.x=x;
   activ_atr.y=y;
-  v_printf("%ux%u @ (%d,%d)/(%d,%d)\n", activ_atr.width, activ_atr.height, x, y, activ_atr.x, activ_atr.y);
 
   // Get resolution
   XGetWindowAttributes(disp, activ_atr.root, &root_atr);
@@ -276,19 +271,23 @@ int main (int argc, char **argv) {
   desktop_y = XineramaInfo[activescreen].y_org;
   desktop_w = XineramaInfo[activescreen].width;
   desktop_h = XineramaInfo[activescreen].height;
+  v_printf("x,y=(%ld,%ld) w,h=(%ld,%ld)\n", desktop_x,  desktop_y, desktop_w, desktop_h);
   
   int newscreen;
   if (switchmonitor) {
     newscreen = (activescreen + 1) % screen_count;
-    activ_atr.x = (double)activ_atr.x/XineramaInfo[activescreen].width*XineramaInfo[newscreen].width;
+    activ_atr.x = XineramaInfo[newscreen].x_org+(double)(activ_atr.x-XineramaInfo[activescreen].x_org)/XineramaInfo[activescreen].width*XineramaInfo[newscreen].width;
     activ_atr.width = (double)activ_atr.width/XineramaInfo[activescreen].width*XineramaInfo[newscreen].width;
-    activ_atr.y = (double)activ_atr.y/XineramaInfo[activescreen].height*XineramaInfo[newscreen].height;
+    activ_atr.y = XineramaInfo[newscreen].y_org+(double)(activ_atr.y-XineramaInfo[activescreen].y_org)/XineramaInfo[activescreen].height*XineramaInfo[newscreen].height;
     activ_atr.height = (double)activ_atr.height/XineramaInfo[activescreen].height*XineramaInfo[newscreen].height;
     
+    v_printf("Newscreen: %d\n", newscreen);
     desktop_x = XineramaInfo[newscreen].x_org;
     desktop_y = XineramaInfo[newscreen].y_org;
     desktop_w = XineramaInfo[newscreen].width;
     desktop_h = XineramaInfo[newscreen].height;
+    v_printf("x,y=(%ld,%ld) w,h=(%ld,%ld)\n", desktop_x,  desktop_y, desktop_w, desktop_h);
+    v_printf("%ux%u @ (%d,%d)\n", activ_atr.width, activ_atr.height, activ_atr.x, activ_atr.y);
   }
   
   Bool isNormalWindow = True;
@@ -339,11 +338,16 @@ int main (int argc, char **argv) {
   unsigned long grflags = StaticGravity;
   int width = desktop_w * factor - 4 * BORDER + 2;
   int height = (desktop_h) * factor - 2 * BORDER  - 2 * TOP;
-  if (switchmonitor) {
+  if (switchmonitor && !(right || left || top || bottom)) {
     new_x  = activ_atr.x;
     new_y  = activ_atr.y;
-//     width  = activ_atr.width;
-//     height = activ_atr.height;
+    width  = activ_atr.width;
+    height = activ_atr.height;
+    grflags |= (1 << 9);  //y
+    grflags |= (1 << 11); //height
+    grflags |= (1 << 8);  //x
+    grflags |= (1 << 10); //width
+//     TODO: oldgravityflag && panels
   }
   
   if (right) {
